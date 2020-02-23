@@ -57,11 +57,11 @@ extern int read_imx219_eeprom_mtk_fmt(void);
 
 /****************************Modify following Strings for debug****************************/
 #define PFX "imx219_camera_sensor"
-#define LOG_1 LOG_INF("imx219,MIPI 2LANE\n")
+#define LOG_1 LOG_INF("imx219,MIPI 4LANE\n")
 #define LOG_2 LOG_INF("preview 1280*960@30fps,864Mbps/lane; video 1280*960@30fps,864Mbps/lane; capture 5M@30fps,864Mbps/lane\n")
 /****************************   Modify end    *******************************************/
 
-#define LOG_INF(format, args...)	pr_debug(PFX "[%s] " format, __FUNCTION__, ##args)
+#define LOG_INF(format, args...)    pr_debug(PFX "[%s] " format, __FUNCTION__, ##args)
 
 static DEFINE_SPINLOCK(imgsensor_drv_lock);
 
@@ -117,6 +117,7 @@ static imgsensor_info_struct imgsensor_info = {
 		.mipi_data_lp2hs_settle_dc = 85,//unit , ns
 		.max_framerate = 300,
 	},
+
 	.hs_video = {
 		.pclk = 265600000,
 		.linelength = 0xD78,
@@ -228,9 +229,10 @@ static imgsensor_info_struct imgsensor_info = {
 
 	.isp_driving_current = ISP_DRIVING_8MA, //mclk driving current
 	.sensor_interface_type = SENSOR_INTERFACE_TYPE_MIPI,//sensor_interface_type
-	.mipi_sensor_type = MIPI_OPHY_NCSI2, //0,MIPI_OPHY_NCSI2;  1,MIPI_OPHY_CSI2
+	.mipi_sensor_type = MIPI_OPHY_CSI2, //0,MIPI_OPHY_NCSI2;  1,MIPI_OPHY_CSI2
 	.mipi_settle_delay_mode = 1,//0,MIPI_SETTLEDELAY_AUTO; 1,MIPI_SETTLEDELAY_MANNUAL
-	.sensor_output_dataformat = SENSOR_OUTPUT_FORMAT_RAW_R,//sensor output first pixel color
+// opium
+	.sensor_output_dataformat = SENSOR_OUTPUT_FORMAT_RAW_B,//sensor output first pixel color
 	.mclk = 24,//mclk value, suggest 24 or 26 for 24Mhz or 26Mhz
 	.mipi_lane_num = SENSOR_MIPI_4_LANE,//mipi lane num
 	.i2c_addr_table = {0x21, 0x20, 0xff},//record sensor support all write id addr, only supprt 4must end with 0xff
@@ -404,7 +406,7 @@ static kal_uint32 return_sensor_id(void)
 	return ((read_cmos_sensor(0x0000) << 8) | read_cmos_sensor(0x0001));
 	//int sensorid;
 	//sensorid =  ((read_cmos_sensor(0x0000) << 8) | read_cmos_sensor(0x0001));
-	//LOG_INF("read sensor id:%x", sensorid);
+	//LOG_INF("mtk read sensor id:%x", sensorid);
 	//return 0x0219;
 }
 static void set_max_framerate(UINT16 framerate,kal_bool min_framelength_en)
@@ -578,7 +580,7 @@ static kal_uint16 gain2reg(const kal_uint16 gain)
          LOG_INF("Gain mapping don't correctly:%d %d \n", gain, IMX219MIPI_sensorGainMapping[iI][0]);
     }
 	LOG_INF("exit IMX219MIPIGain2Reg function\n");
-    return IMX219MIPI_sensorGainMapping[iI-1][1];
+    return IMX219MIPI_sensorGainMapping[iI-1][1];  //here,if gain < 64, stack overflow happen.
 	//return NONE;
 
 }
@@ -611,7 +613,7 @@ static kal_uint16 set_gain(kal_uint16 gain)
 		imgsensor.gain = reg_gain;
 		spin_unlock(&imgsensor_drv_lock);
 		write_cmos_sensor(0x0157, (kal_uint8)reg_gain);
-		LOG_INF("gain = %d , reg_gain = 0x%x\n", gain, reg_gain);
+		LOG_INF("gain = %d , reg_gain = 0x%x\n ", gain, reg_gain);
  	}
 
 	return gain;
@@ -720,8 +722,8 @@ static void sensor_init(void)
 
 static void preview_setting(void)
 {
-
-	write_cmos_sensor(0x0100,   0x00);
+	write_cmos_sensor(0x0172,  0x03);
+	write_cmos_sensor(0x0100,  0x00);
 	write_cmos_sensor(0x30EB,  0x05);
 	write_cmos_sensor(0x30EB,  0x0C);
 	write_cmos_sensor(0x300A,  0xFF);
@@ -785,7 +787,8 @@ static void capture_setting(kal_uint16 currefps)
 	LOG_INF("E! currefps:%d\n",currefps);
 	if (currefps == 240) { //24fps for PIP
 		//@@full_132PCLK_24.75
-		  write_cmos_sensor(0x0100,	0x00);
+		  write_cmos_sensor(0x0172,   0x03);
+		  write_cmos_sensor(0x0100,   0x00);
 		  write_cmos_sensor(0x30EB,   0x05);
 		  write_cmos_sensor(0x30EB,   0x0C);
 		  write_cmos_sensor(0x300A,   0xFF);
@@ -843,7 +846,8 @@ static void capture_setting(kal_uint16 currefps)
 		  write_cmos_sensor(0x0100,   0x01);
 
 	} else {   //30fps			//30fps for Normal capture & ZSD
-		write_cmos_sensor(0x0100,	0x00);
+		  write_cmos_sensor(0x0172,   0x03);
+		  write_cmos_sensor(0x0100,   0x00);
 		  write_cmos_sensor(0x30EB,   0x05);
 		  write_cmos_sensor(0x30EB,   0x0C);
 		  write_cmos_sensor(0x300A,   0xFF);
@@ -912,7 +916,8 @@ static void capture_setting(kal_uint16 currefps)
 static void normal_video_setting(kal_uint16 currefps)
 {
 	LOG_INF("E! currefps:%d\n",currefps);
-	write_cmos_sensor(0x0100,	0x00);
+		  write_cmos_sensor(0x0172,   0x03);
+		  write_cmos_sensor(0x0100,   0x00);
 		  write_cmos_sensor(0x30EB,   0x05);
 		  write_cmos_sensor(0x30EB,   0x0C);
 		  write_cmos_sensor(0x300A,   0xFF);
@@ -976,7 +981,8 @@ static void normal_video_setting(kal_uint16 currefps)
 static void hs_video_setting(kal_uint16 currefps)
 {
 	LOG_INF("E! currefps:%d\n",currefps);
-	write_cmos_sensor(0x0100,	0x00);
+                  write_cmos_sensor(0x0172,   0x03);
+	          write_cmos_sensor(0x0100,   0x00);
 		  write_cmos_sensor(0x30EB,   0x05);
 		  write_cmos_sensor(0x30EB,   0x0C);
 		  write_cmos_sensor(0x300A,   0xFF);
@@ -1040,6 +1046,7 @@ static void hs_video_setting(kal_uint16 currefps)
 static void slim_video_setting(void)
 {
 	LOG_INF("E\n");
+	write_cmos_sensor(0x0172,   0x03);
 	write_cmos_sensor(0x0100,   0x00);
 	write_cmos_sensor(0x30EB,   0x05);
 	write_cmos_sensor(0x30EB,   0x0C);

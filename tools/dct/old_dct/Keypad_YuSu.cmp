@@ -67,6 +67,9 @@ KEY_W
 KEY_X
 KEY_Y
 KEY_Z
+KEY_F12
+KEY_ZOOMIN
+KEY_ZOOMOUT
 
 [Key_code]
 0
@@ -137,6 +140,9 @@ KEY_Z
 45
 21
 44
+88
+418
+419
 
 [Key_code_linux]
 0
@@ -207,6 +213,9 @@ KEY_Z
 45
 21
 44
+88
+418
+419
 
 [Power_Key_definition]
 KEY_POWER

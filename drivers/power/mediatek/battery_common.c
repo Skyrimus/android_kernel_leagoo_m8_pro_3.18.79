@@ -266,9 +266,9 @@ static int suspend_discharging = -1;
 #if !defined(CONFIG_POWER_EXT)
 static int is_uisoc_ever_100 = KAL_FALSE;
 #endif
-#if defined(CONFIG_ONTIM_POWER_DRIVER)
+/*#if defined(CONFIG_ONTIM_POWER_DRIVER)
 kal_bool chargin_hw_init_done = KAL_FALSE;
-#endif
+#endif*/
 /* ////////////////////////////////////////////////////////////////////////////// */
 /* FOR ANDROID BATTERY SERVICE */
 /* ////////////////////////////////////////////////////////////////////////////// */
@@ -412,6 +412,9 @@ kal_bool upmu_is_chr_det(void)
 	unsigned int tmp32;
 #endif
 #if defined(CONFIG_ONTIM_POWER_DRIVER)
+	if (battery_charging_control == NULL)
+		battery_charging_control = chr_control_interface;
+#else
 	int idx = 0;
 
 	if (battery_charging_control == NULL) {
@@ -426,9 +429,6 @@ kal_bool upmu_is_chr_det(void)
 		if (battery_charging_control == NULL)
 			battery_log(BAT_LOG_CRTI, "can't find any charger driver\n");
 	}
-#else
-	if (battery_charging_control == NULL)
-		battery_charging_control = chr_control_interface;
 #endif
 #if defined(CONFIG_POWER_EXT)
 	/* return KAL_TRUE; */
@@ -3866,6 +3866,8 @@ void battery_kthread_hrtimer_init(void)
 static void get_charging_control(void)
 {
 #if defined(CONFIG_ONTIM_POWER_DRIVER)
+	battery_charging_control = chr_control_interface;
+#else
 	int idx = 0;
 
 	if (battery_charging_control == NULL) {
@@ -3881,8 +3883,6 @@ static void get_charging_control(void)
 		if (battery_charging_control == NULL)
 			battery_log(BAT_LOG_CRTI, "can't find any charger driver\n");
 	}
-#else
-	battery_charging_control = chr_control_interface;
 #endif
 }
 

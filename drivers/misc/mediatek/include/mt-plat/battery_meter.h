@@ -426,7 +426,7 @@ extern int battery_meter_get_low_battery_interrupt_status(void);
 extern signed int battery_meter_meta_tool_cali_car_tune(int);
 extern void mt_battery_set_init_vol(int);
 
-#if defined(CONFIG_MTK_HAFG_20)
+#if !defined(CONFIG_MTK_HAFG_20)
 extern struct battery_meter_custom_data batt_meter_cust_data;
 extern struct battery_meter_table_custom_data batt_meter_table_cust_data;
 extern unsigned int get_cv_voltage(void);

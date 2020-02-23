@@ -1937,7 +1937,7 @@ choice
 	prompt "Timer frequency"
 
 config HZ_100
-	depends on !MTK_ENABLE_AGO
+
 	bool "100 Hz"
 
 config HZ_200

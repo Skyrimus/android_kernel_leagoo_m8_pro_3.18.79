@@ -1,15 +1,3 @@
-/*
- * Copyright (C) 2015 MediaTek Inc.
- *
- * This file is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
 /*****************************************************************************
 *
 * Filename:
@@ -115,14 +103,16 @@
 #define CON4_I_TERM_SHIFT   0
 
 /* CON5 */
+#if 0
 #define CON5_DIS_VREG_MASK      0x01
 #define CON5_DIS_VREG_SHIFT     6
+#endif
 
 #define CON5_IO_LEVEL_MASK      0x01
 #define CON5_IO_LEVEL_SHIFT     5
 
-#define CON5_SP_STATUS_MASK     0x01
-#define CON5_SP_STATUS_SHIFT    4
+#define CON5_DPM_STATUS_MASK     0x01
+#define CON5_DPM_STATUS_SHIFT    4
 
 #define CON5_EN_LEVEL_MASK      0x01
 #define CON5_EN_LEVEL_SHIFT     3
@@ -131,7 +121,7 @@
 #define CON5_VSP_SHIFT          0
 
 /* CON6 */
-#define CON6_ISAFE_MASK     0x07
+#define CON6_ISAFE_MASK     0x0F
 #define CON6_ISAFE_SHIFT    4
 
 #define CON6_VSAFE_MASK     0x0F
@@ -142,9 +132,7 @@
   *   [Extern Function]
   *
   *********************************************************/
-extern kal_bool chargin_hw_init_done;
 /* CON0---------------------------------------------------- */
-extern int is_bq24157_exist(void);
 extern void bq24157_set_tmr_rst(unsigned int val);
 extern unsigned int bq24157_get_otg_status(void);
 extern void bq24157_set_en_stat(unsigned int val);
@@ -171,9 +159,11 @@ extern void bq24157_set_reset(unsigned int val);
 extern void bq24157_set_iocharge(unsigned int val);
 extern void bq24157_set_iterm(unsigned int val);
 /* CON5---------------------------------------------------- */
+#if 0
 extern void bq24157_set_dis_vreg(unsigned int val);
+#endif
 extern void bq24157_set_io_level(unsigned int val);
-extern unsigned int bq24157_get_sp_status(void);
+extern unsigned int bq24157_get_dpm_status(void);
 extern unsigned int bq24157_get_en_level(void);
 extern void bq24157_set_vsp(unsigned int val);
 /* CON6---------------------------------------------------- */

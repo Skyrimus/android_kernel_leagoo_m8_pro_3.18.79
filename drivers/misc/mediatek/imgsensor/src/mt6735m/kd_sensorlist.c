@@ -59,12 +59,23 @@
 #include <linux/regulator/consumer.h>
 #endif /* !defined(CONFIG_MTK_LEGACY) */
 
+#include <linux/hw_module_info.h>
+#define  CAM_HWINFO
+
+#ifdef CAM_HWINFO
+static char tyd_imgsensor_name_main[32]="null";
+static char tyd_imgsensor_name_sub[32]="null";
+//Modify camera main2 by Droi DXQ start 20170906
+static char tyd_imgsensor_name_main_2[32]="null";
+//Modify camera main2 by Droi DXQ end 20170906
+
+//Modify camera main2 by Droi DXQ end 20170906
+#endif
 /* Camera information */
 #define PROC_CAMERA_INFO "driver/camera_info"
 #define camera_info_size 128
 #define PDAF_DATA_SIZE 4096
 char mtk_ccm_name[camera_info_size] = { 0 };
-#define FEATURE_CONTROL_MAX_DATA_SIZE 128000
 
 static unsigned int gDrvIndex;
 
@@ -79,13 +90,33 @@ static DEFINE_SPINLOCK(kdsensor_drv_lock);
 #ifndef SUPPORT_I2C_BUS_NUM1
 #define SUPPORT_I2C_BUS_NUM1        0
 #endif
+//Modify camera main2 by Droi DXQ start 20170906
+#if defined(DROI_PRO_PU6)
+#ifndef SUPPORT_I2C_BUS_NUM2
+#define SUPPORT_I2C_BUS_NUM2        0
+#endif
+#else
 #ifndef SUPPORT_I2C_BUS_NUM2
 #define SUPPORT_I2C_BUS_NUM2        2
 #endif
+#endif
 
+#if defined(DROI_PRO_PU6)
+#ifndef SUPPORT_I2C_BUS_NUM3
+#define SUPPORT_I2C_BUS_NUM3        2
+#endif
+#else
+#ifndef SUPPORT_I2C_BUS_NUM3
+#define SUPPORT_I2C_BUS_NUM3        3
+#endif
+#endif
+//Modify camera main2 by Droi DXQ end 20170906
 
 #define CAMERA_HW_DRVNAME1  "kd_camera_hw"
 #define CAMERA_HW_DRVNAME2  "kd_camera_hw_bus2"
+//Modify camera main2 by Droi DXQ start 20170906
+#define CAMERA_HW_DRVNAME3  "kd_camera_hw_bus3"
+//Modify camera main2 by Droi DXQ end 20170906
 
 #if defined(CONFIG_MTK_LEGACY)
 static struct i2c_board_info i2c_devs1 __initdata = {I2C_BOARD_INFO(CAMERA_HW_DRVNAME1, 0xfe>>1)};
@@ -99,6 +130,7 @@ static struct i2c_board_info i2c_devs2 __initdata = {I2C_BOARD_INFO(CAMERA_HW_DR
 	struct regulator *regVCAMIO = NULL;
 	struct regulator *regVCAMAF = NULL;
 	struct regulator *regSubVCAMD = NULL;
+	struct regulator *regVRF18_1  = NULL;
 #endif
 
 struct device *sensor_device = NULL;
@@ -176,7 +208,7 @@ static inline void KD_IMGSENSOR_PROFILE(char *tag) {}
 ********************************************************************************/
 extern int kdCISModulePowerOn(CAMERA_DUAL_CAMERA_SENSOR_ENUM SensorIdx, char *currSensorName,
 			      BOOL On, char *mode_name);
-extern void checkPowerBeforClose(char *mode_name);
+//extern void checkPowerBeforClose(char *mode_name);
 /* extern ssize_t strobe_VDIrq(void);  //cotta : add for high current solution */
 
 /*******************************************************************************
@@ -193,20 +225,35 @@ static struct platform_device camerahw_platform_device = {
 
 static struct i2c_client *g_pstI2Cclient;
 static struct i2c_client *g_pstI2Cclient2;
+//Modify camera main2 by Droi DXQ start 20170906
+static struct i2c_client *g_pstI2Cclient3;
+//Modify camera main2 by Droi DXQ end 20170906
 
 /* 81 is used for V4L driver */
 static dev_t g_CAMERA_HWdevno = MKDEV(250, 0);
 static dev_t g_CAMERA_HWdevno2;
+//Modify camera main2 by Droi DXQ start 20170906
+static dev_t g_CAMERA_HWdevno3;
+//Modify camera main2 by Droi DXQ end 20170906
 static struct cdev *g_pCAMERA_HW_CharDrv;
 static struct cdev *g_pCAMERA_HW_CharDrv2;
+//Modify camera main2 by Droi DXQ start 20170906
+static struct cdev *g_pCAMERA_HW_CharDrv3;
+//Modify camera main2 by Droi DXQ end 20170906
 static struct class *sensor_class;
 static struct class *sensor2_class;
+//Modify camera main2 by Droi DXQ start 20170906
+static struct class *sensor3_class;
+//Modify camera main2 by Droi DXQ end 20170906
 
 static atomic_t g_CamHWOpend;
 static atomic_t g_CamHWOpend2;
 static atomic_t g_CamHWOpening;
 static atomic_t g_CamDrvOpenCnt;
 static atomic_t g_CamDrvOpenCnt2;
+//Modify camera main2 by Droi DXQ start 20170906
+static atomic_t g_CamDrvOpenCnt3;
+//Modify camera main2 by Droi DXQ end 20170906
 
 /* static u32 gCurrI2CBusEnableFlag = 0; */
 static u32 gI2CBusNum = SUPPORT_I2C_BUS_NUM1;
@@ -244,9 +291,11 @@ static unsigned int g_IsSearchSensor;
 * i2c relative start
 * migrate new style i2c driver interfaces required by Kirby 20100827
 ********************************************************************************/
-static const struct i2c_device_id CAMERA_HW_i2c_id[] = { {CAMERA_HW_DRVNAME1, 0}, {} };
-static const struct i2c_device_id CAMERA_HW_i2c_id2[] = { {CAMERA_HW_DRVNAME2, 0}, {} };
-
+static const struct i2c_device_id CAMERA_HW_i2c_id[] = {{CAMERA_HW_DRVNAME1, 0}, {} };
+static const struct i2c_device_id CAMERA_HW_i2c_id2[] = {{CAMERA_HW_DRVNAME2, 0}, {} };
+//Modify camera main2 by Droi DXQ start 20170906
+static const struct i2c_device_id CAMERA_HW_i2c_id3[] = {{CAMERA_HW_DRVNAME3, 0}, {} };
+//Modify camera main2 by Droi DXQ end 20170906
 
 
 /*******************************************************************************
@@ -291,7 +340,28 @@ int iMultiReadReg(u16 a_u2Addr, u8 *a_puBuff, u16 i2cId, u8 number)
 			PK_ERR("[CAMERA SENSOR] I2C read failed!!\n");
 			return -1;
 		}
-	} else {
+		//Modify camera main2 by Droi DXQ start 20170906
+    }else if (gI2CBusNum == SUPPORT_I2C_BUS_NUM3) {
+    	spin_lock(&kdsensor_drv_lock);
+
+    	g_pstI2Cclient3->addr = (i2cId >> 1);
+
+    	spin_unlock(&kdsensor_drv_lock);
+
+    	/*  */
+    	i4RetValue = i2c_master_send(g_pstI2Cclient3, puReadCmd, 2);
+    	if (i4RetValue != 2) {
+        	PK_ERR("[CAMERA SENSOR] I2C send failed, addr = 0x%x, data = 0x%x !!\n", a_u2Addr,  *a_puBuff);
+        	return -1;
+    	}
+    	/*  */
+    	i4RetValue = i2c_master_recv(g_pstI2Cclient3, (char *)a_puBuff, number);
+    	if (i4RetValue != 1) {
+        	PK_ERR("[CAMERA SENSOR] I2C read failed!!\n");
+        	return -1;
+    	}
+		//Modify camera main2 by Droi DXQ end 20170906
+    }else {
 		spin_lock(&kdsensor_drv_lock);
 		g_pstI2Cclient2->addr = (i2cId >> 1);
 		spin_unlock(&kdsensor_drv_lock);
@@ -349,9 +419,38 @@ int iReadReg(u16 a_u2Addr, u8 *a_puBuff, u16 i2cId)
 			PK_ERR("[CAMERA SENSOR] I2C read failed!!\n");
 			return -1;
 		}
-	} else {
-		spin_lock(&kdsensor_drv_lock);
-		g_pstI2Cclient2->addr = (i2cId >> 1);
+		//Modify camera main2 by Droi DXQ start 20170906
+    }else if (gI2CBusNum == SUPPORT_I2C_BUS_NUM3) {
+    	spin_lock(&kdsensor_drv_lock);
+
+    	g_pstI2Cclient3->addr = (i2cId >> 1);
+    	g_pstI2Cclient3->ext_flag = (g_pstI2Cclient3->ext_flag)&(~I2C_DMA_FLAG);
+
+    	/* Remove i2c ack error log during search sensor */
+    	if (g_IsSearchSensor == 1)
+        	g_pstI2Cclient3->ext_flag = (g_pstI2Cclient3->ext_flag) | I2C_A_FILTER_MSG;
+   		else
+        	g_pstI2Cclient3->ext_flag = (g_pstI2Cclient3->ext_flag)&(~I2C_A_FILTER_MSG);
+
+
+    	spin_unlock(&kdsensor_drv_lock);
+
+    	/*  */
+    	i4RetValue = i2c_master_send(g_pstI2Cclient3, puReadCmd, 2);
+    	if (i4RetValue != 2) {
+       		PK_ERR("[CAMERA SENSOR] I2C send failed, addr = 0x%x, data = 0x%x !!\n", a_u2Addr,  *a_puBuff);
+        	return -1;
+    	}
+		/*  */
+		i4RetValue = i2c_master_recv(g_pstI2Cclient3, (char *)a_puBuff, 1);
+		if (i4RetValue != 1) {
+		    PK_ERR("[CAMERA SENSOR] I2C read failed!!\n");
+		    return -1;
+		}
+		//Modify camera main2 by Droi DXQ end 20170906
+    }else {
+    	spin_lock(&kdsensor_drv_lock);
+    	g_pstI2Cclient2->addr = (i2cId >> 1);
 
 		/* Remove i2c ack error log during search sensor */
 		if (g_IsSearchSensor == 1)
@@ -409,7 +508,35 @@ int iReadRegI2C(u8 *a_pSendData , u16 a_sizeSendData, u8 *a_pRecvData, u16 a_siz
 			PK_ERR("[CAMERA SENSOR] I2C read failed!!\n");
 			return -1;
 		}
-	} else {
+		//Modify camera main2 by Droi DXQ start 20170906
+    }else if (gI2CBusNum == SUPPORT_I2C_BUS_NUM3) {
+		printk("#dxq# gI2CBusNum=%d,LINE=%d\n",gI2CBusNum,__LINE__);
+		spin_lock(&kdsensor_drv_lock);
+		g_pstI2Cclient3->addr = (i2cId >> 1);
+		g_pstI2Cclient3->ext_flag = (g_pstI2Cclient3->ext_flag)&(~I2C_DMA_FLAG);
+
+		/* Remove i2c ack error log during search sensor */
+		/* PK_ERR("g_pstI2Cclient3->ext_flag: %d", g_IsSearchSensor); */
+		if (g_IsSearchSensor == 1)
+		    g_pstI2Cclient3->ext_flag = (g_pstI2Cclient3->ext_flag) | I2C_A_FILTER_MSG;
+		else
+		    g_pstI2Cclient3->ext_flag = (g_pstI2Cclient3->ext_flag)&(~I2C_A_FILTER_MSG);
+
+		spin_unlock(&kdsensor_drv_lock);
+		/*  */
+		i4RetValue = i2c_master_send(g_pstI2Cclient3, a_pSendData, a_sizeSendData);
+		if (i4RetValue != a_sizeSendData) {
+		    PK_ERR("[CAMERA SENSOR] I2C send failed!!, Addr = 0x%x\n", a_pSendData[0]);
+		    return -1;
+		}
+
+		i4RetValue = i2c_master_recv(g_pstI2Cclient3, (char *)a_pRecvData, a_sizeRecvData);
+		if (i4RetValue != a_sizeRecvData) {
+		    PK_ERR("[CAMERA SENSOR] I2C read failed!!\n");
+		    return -1;
+		}
+		//Modify camera main2 by Droi DXQ end 20170906
+    } else{
 		spin_lock(&kdsensor_drv_lock);
 		g_pstI2Cclient2->addr = (i2cId >> 1);
 
@@ -459,8 +586,13 @@ int iWriteReg(u16 a_u2Addr, u32 a_u4Data, u32 a_u4Bytes, u16 i2cId)
 
 	if (gI2CBusNum == SUPPORT_I2C_BUS_NUM1) {
 		g_pstI2Cclient->addr = (i2cId >> 1);
-		g_pstI2Cclient->ext_flag = (g_pstI2Cclient->ext_flag) & (~I2C_DMA_FLAG);
-	} else {
+		g_pstI2Cclient->ext_flag = (g_pstI2Cclient->ext_flag)&(~I2C_DMA_FLAG);
+	//Modify camera main2 by Droi DXQ start 20170906
+    }else if (gI2CBusNum == SUPPORT_I2C_BUS_NUM3) {
+		g_pstI2Cclient3->addr = (i2cId >> 1);
+		g_pstI2Cclient3->ext_flag = (g_pstI2Cclient3->ext_flag)&(~I2C_DMA_FLAG);
+//Modify camera main2 by Droi DXQ end 20170906
+    } else {
 		g_pstI2Cclient2->addr = (i2cId >> 1);
 		g_pstI2Cclient2->ext_flag = (g_pstI2Cclient2->ext_flag) & (~I2C_DMA_FLAG);
 	}
@@ -480,12 +612,16 @@ int iWriteReg(u16 a_u2Addr, u32 a_u4Data, u32 a_u4Bytes, u16 i2cId)
 		puSendCmd[(u4Index + 2)] = puDataInBytes[(a_u4Bytes - u4Index - 1)];
 	}
 	/*  */
-	do {
-		if (gI2CBusNum == SUPPORT_I2C_BUS_NUM1) {
-			i4RetValue = i2c_master_send(g_pstI2Cclient, puSendCmd, (a_u4Bytes + 2));
-		} else {
-			i4RetValue = i2c_master_send(g_pstI2Cclient2, puSendCmd, (a_u4Bytes + 2));
-		}
+    do {
+       if (gI2CBusNum == SUPPORT_I2C_BUS_NUM1) {
+        i4RetValue = i2c_master_send(g_pstI2Cclient, puSendCmd, (a_u4Bytes + 2));
+		//Modify camera main2 by Droi DXQ start 20170906
+       }else if (gI2CBusNum == SUPPORT_I2C_BUS_NUM3) {
+        	i4RetValue = i2c_master_send(g_pstI2Cclient3, puSendCmd, (a_u4Bytes + 2));
+		//Modify camera main2 by Droi DXQ end 20170906
+       } else {
+        i4RetValue = i2c_master_send(g_pstI2Cclient2, puSendCmd, (a_u4Bytes + 2));
+       }
 		if (i4RetValue != (a_u4Bytes + 2)) {
 			PK_ERR("[CAMERA SENSOR] I2C send failed addr = 0x%x, data = 0x%x !!\n",
 			       a_u2Addr, a_u4Data);
@@ -500,14 +636,15 @@ int iWriteReg(u16 a_u2Addr, u32 a_u4Data, u32 a_u4Bytes, u16 i2cId)
 
 int kdSetI2CBusNum(u32 i2cBusNum)
 {
-
-	if ((i2cBusNum != SUPPORT_I2C_BUS_NUM2) && (i2cBusNum != SUPPORT_I2C_BUS_NUM1)) {
-		PK_ERR("[kdSetI2CBusNum] i2c bus number is not correct(%d)\n", i2cBusNum);
-		return -1;
-	}
-	spin_lock(&kdsensor_drv_lock);
-	gI2CBusNum = i2cBusNum;
-	spin_unlock(&kdsensor_drv_lock);
+    //Main2 Support
+    //if ((i2cBusNum != SUPPORT_I2C_BUS_NUM2) && (i2cBusNum != SUPPORT_I2C_BUS_NUM1)) {
+    if ((i2cBusNum != SUPPORT_I2C_BUS_NUM3) && (i2cBusNum != SUPPORT_I2C_BUS_NUM2) && (i2cBusNum != SUPPORT_I2C_BUS_NUM1)) {
+    PK_ERR("[kdSetI2CBusNum] i2c bus number is not correct(%d)\n", i2cBusNum);
+    return -1;
+    }
+    spin_lock(&kdsensor_drv_lock);
+    gI2CBusNum = i2cBusNum;
+    spin_unlock(&kdsensor_drv_lock);
 
 	return 0;
 }
@@ -518,7 +655,13 @@ void kdSetI2CSpeed(u32 i2cSpeed)
 		spin_lock(&kdsensor_drv_lock);
 		g_pstI2Cclient->timing = i2cSpeed;
 		spin_unlock(&kdsensor_drv_lock);
-	} else {
+		//Modify camera main2 by Droi DXQ start 20170906
+	}else if (gI2CBusNum == SUPPORT_I2C_BUS_NUM3) {
+		spin_lock(&kdsensor_drv_lock);
+		g_pstI2Cclient3->timing = i2cSpeed;
+		spin_unlock(&kdsensor_drv_lock);
+		//Modify camera main2 by Droi DXQ end 20170906
+	} else{
 		spin_lock(&kdsensor_drv_lock);
 		g_pstI2Cclient2->timing = i2cSpeed;
 		spin_unlock(&kdsensor_drv_lock);
@@ -590,16 +733,54 @@ int iBurstWriteReg_multi(u8 *pData, u32 bytes, u16 i2cId, u16 transfer_length)
 			ret = i2c_master_send(g_pstI2Cclient, (u8 *)phyAddr,
 					      bytes == transfer_length ? transfer_length : ((bytes / transfer_length) << 16) | transfer_length);
 			retry--;
-			if ((ret & 0xffff) != transfer_length) {
+			if ((ret & 0xffff) != transfer_length)
 				PK_ERR("Error sent I2C ret = %d\n", ret);
-			}
 		} while (((ret & 0xffff) != transfer_length) && (retry > 0));
 
 		dma_free_coherent(&(camerahw_platform_device.dev), bytes, buf, phyAddr);
 		spin_lock(&kdsensor_drv_lock);
 		g_pstI2Cclient->addr = old_addr;
 		spin_unlock(&kdsensor_drv_lock);
-	} else {
+		//Modify camera main2 by Droi DXQ start 20170906
+    }else if (gI2CBusNum == SUPPORT_I2C_BUS_NUM3) {
+    	if (bytes > MAX_CMD_LEN) {
+        	PK_DBG("[iBurstWriteReg] exceed the max write length\n");
+        	return 1;
+    	}
+    	phyAddr = 0;
+    	buf = dma_alloc_coherent(&(camerahw_platform_device.dev), bytes, (dma_addr_t *)&phyAddr, GFP_KERNEL);
+    	if (NULL == buf) {
+        	PK_ERR("[iBurstWriteReg] Not enough memory\n");
+        	return -1;
+    	}
+    	memset(buf, 0, bytes);
+    	memcpy(buf, pData, bytes);
+    	/* PK_DBG("[iBurstWriteReg] bytes = %d, phy addr = 0x%x\n", bytes, phyAddr ); */
+
+    	old_addr = g_pstI2Cclient3->addr;
+    	spin_lock(&kdsensor_drv_lock);
+    	g_pstI2Cclient3->addr = (i2cId >> 1);
+    	g_pstI2Cclient3->ext_flag = (g_pstI2Cclient3->ext_flag | I2C_ENEXT_FLAG | I2C_DMA_FLAG);
+    	g_pstI2Cclient3->ext_flag = (g_pstI2Cclient3->ext_flag)&(~I2C_POLLING_FLAG);
+    	spin_unlock(&kdsensor_drv_lock);
+    	ret = 0;
+    	retry = 3;
+    	do {
+        	ret = i2c_master_send(g_pstI2Cclient2, (u8 *)(phyAddr),
+        	bytes == transfer_length ? transfer_length : ((bytes/transfer_length)<<16)|transfer_length);
+        	retry--;
+        	if ((ret&0xffff) != transfer_length) {
+        		PK_ERR("Error sent I2C ret = %d\n", ret);
+			}
+		} while (((ret&0xffff) != transfer_length) && (retry > 0));
+
+
+    	dma_free_coherent(&(camerahw_platform_device.dev), bytes, buf, phyAddr);
+    	spin_lock(&kdsensor_drv_lock);
+    	g_pstI2Cclient3->addr = old_addr;
+    	spin_unlock(&kdsensor_drv_lock);
+		//Modify camera main2 by Droi DXQ end 20170906
+    } else {
 		if (bytes > MAX_CMD_LEN) {
 			PK_DBG("[iBurstWriteReg] exceed the max write length\n");
 			return 1;
@@ -662,7 +843,13 @@ int iMultiWriteReg(u8 *pData, u16 lens, u16 i2cId)
 		g_pstI2Cclient->addr = (i2cId >> 1);
 		g_pstI2Cclient->ext_flag = (g_pstI2Cclient->ext_flag) | (I2C_DMA_FLAG);
 		ret = i2c_master_send(g_pstI2Cclient, pData, lens);
-	} else {
+	//Modify camera main2 by Droi DXQ start 20170906
+    }else if (gI2CBusNum == SUPPORT_I2C_BUS_NUM3) {
+		g_pstI2Cclient3->addr = (i2cId >> 1);
+		g_pstI2Cclient3->ext_flag = (g_pstI2Cclient3->ext_flag)|(I2C_DMA_FLAG);
+		ret = i2c_master_send(g_pstI2Cclient3, pData, lens);
+	//Modify camera main2 by Droi DXQ end 20170906
+    } else {
 		g_pstI2Cclient2->addr = (i2cId >> 1);
 		g_pstI2Cclient2->ext_flag = (g_pstI2Cclient2->ext_flag) | (I2C_DMA_FLAG);
 		ret = i2c_master_send(g_pstI2Cclient2, pData, lens);
@@ -689,8 +876,13 @@ int iWriteRegI2C(u8 *a_pSendData, u16 a_sizeSendData, u16 i2cId)
 	spin_lock(&kdsensor_drv_lock);
 	if (gI2CBusNum == SUPPORT_I2C_BUS_NUM1) {
 		g_pstI2Cclient->addr = (i2cId >> 1);
-		g_pstI2Cclient->ext_flag = (g_pstI2Cclient->ext_flag) & (~I2C_DMA_FLAG);
-	} else {
+		g_pstI2Cclient->ext_flag = (g_pstI2Cclient->ext_flag)&(~I2C_DMA_FLAG);
+	//Modify camera main2 by Droi DXQ start 20170906
+    }else if (gI2CBusNum == SUPPORT_I2C_BUS_NUM3) {
+		g_pstI2Cclient3->addr = (i2cId >> 1);
+		g_pstI2Cclient3->ext_flag = (g_pstI2Cclient3->ext_flag)&(~I2C_DMA_FLAG);
+	//Modify camera main2 by Droi DXQ end 20170906
+    }else {
 		g_pstI2Cclient2->addr = (i2cId >> 1);
 		g_pstI2Cclient2->ext_flag = (g_pstI2Cclient2->ext_flag) & (~I2C_DMA_FLAG);
 	}
@@ -699,9 +891,13 @@ int iWriteRegI2C(u8 *a_pSendData, u16 a_sizeSendData, u16 i2cId)
 
 	do {
 		if (gI2CBusNum == SUPPORT_I2C_BUS_NUM1) {
-			i4RetValue = i2c_master_send(g_pstI2Cclient, a_pSendData, a_sizeSendData);
-		} else {
-			i4RetValue = i2c_master_send(g_pstI2Cclient2, a_pSendData, a_sizeSendData);
+		    i4RetValue = i2c_master_send(g_pstI2Cclient, a_pSendData, a_sizeSendData);
+		//Modify camera main2 by Droi DXQ start 20170906
+		}else if (gI2CBusNum == SUPPORT_I2C_BUS_NUM3) {
+		    i4RetValue = i2c_master_send(g_pstI2Cclient3, a_pSendData, a_sizeSendData);
+		//Modify camera main2 by Droi DXQ end 20170906
+		}else {
+		    i4RetValue = i2c_master_send(g_pstI2Cclient2, a_pSendData, a_sizeSendData);
 		}
 		if (i4RetValue != a_sizeSendData) {
 			PK_DBG("[CAMERA SENSOR] I2C send failed!!, Addr = 0x%x, Data = 0x%x\n",
@@ -776,17 +972,24 @@ MUINT32 kd_MultiSensorOpen(void)
 						     gI2CBusNum);
 				}
 #else
-				if (DUAL_CAMERA_SUB_SENSOR == g_invokeSocketIdx[i]) {
-					spin_lock(&kdsensor_drv_lock);
-					gI2CBusNum = SUPPORT_I2C_BUS_NUM2;
-					spin_unlock(&kdsensor_drv_lock);
-					PK_XLOG_INFO("kd_MultiSensorOpen: switch I2C BUS2\n");
+//Modify camera main2 by Droi DXQ start 20170906
+				if (DUAL_CAMERA_MAIN_2_SENSOR == g_invokeSocketIdx[i]) {
+				    spin_lock(&kdsensor_drv_lock);
+				    gI2CBusNum = SUPPORT_I2C_BUS_NUM3;
+				    spin_unlock(&kdsensor_drv_lock);
+				    PK_XLOG_INFO("kd_MultiSensorOpen: switch I2C BUS%d line=%d\n", gI2CBusNum,__LINE__);
+				} else if (DUAL_CAMERA_SUB_SENSOR == g_invokeSocketIdx[i]) {
+				    spin_lock(&kdsensor_drv_lock);
+				    gI2CBusNum = SUPPORT_I2C_BUS_NUM2;
+				    spin_unlock(&kdsensor_drv_lock);
+				    PK_XLOG_INFO("kd_MultiSensorOpen: switch I2C BUS%d line=%d\n", gI2CBusNum,__LINE__);
 				} else {
-					spin_lock(&kdsensor_drv_lock);
-					gI2CBusNum = SUPPORT_I2C_BUS_NUM1;
-					spin_unlock(&kdsensor_drv_lock);
-					PK_XLOG_INFO("kd_MultiSensorOpen: switch I2C BUS1\n");
+				    spin_lock(&kdsensor_drv_lock);
+				    gI2CBusNum = SUPPORT_I2C_BUS_NUM1;
+				    spin_unlock(&kdsensor_drv_lock);
+				    PK_XLOG_INFO("kd_MultiSensorOpen: switch I2C BUS%d line=%d\n", gI2CBusNum,__LINE__);
 				}
+//Modify camera main2 by Droi DXQ end 20170906
 #endif
 				/*  */
 				/* set i2c slave ID */
@@ -922,11 +1125,17 @@ kd_MultiSensorFeatureControl(CAMERA_DUAL_CAMERA_SENSOR_ENUM InvokeCamera,
 						     gI2CBusNum);
 				}
 #else
-				if (DUAL_CAMERA_SUB_SENSOR == g_invokeSocketIdx[i]) {
-					spin_lock(&kdsensor_drv_lock);
-					gI2CBusNum = SUPPORT_I2C_BUS_NUM2;
-					spin_unlock(&kdsensor_drv_lock);
-					/* PK_XLOG_INFO("kd_MultiSensorFeatureControl: switch I2C BUS2\n"); */
+ 			//Modify camera main2 by Droi DXQ start 20170906
+				if (DUAL_CAMERA_MAIN_2_SENSOR == g_invokeSocketIdx[i]) {
+				    spin_lock(&kdsensor_drv_lock);
+				    gI2CBusNum = SUPPORT_I2C_BUS_NUM3;
+				    spin_unlock(&kdsensor_drv_lock);
+				} else if (DUAL_CAMERA_SUB_SENSOR == g_invokeSocketIdx[i]) {
+			//Modify camera main2 by Droi DXQ end 20170906
+				    spin_lock(&kdsensor_drv_lock);
+				    gI2CBusNum = SUPPORT_I2C_BUS_NUM2;
+				    spin_unlock(&kdsensor_drv_lock);
+				    /* PK_XLOG_INFO("kd_MultiSensorFeatureControl: switch I2C BUS2\n"); */
 				} else {
 					spin_lock(&kdsensor_drv_lock);
 					gI2CBusNum = SUPPORT_I2C_BUS_NUM1;
@@ -979,7 +1188,13 @@ kd_MultiSensorControl(CAMERA_DUAL_CAMERA_SENSOR_ENUM InvokeCamera,
 						     gI2CBusNum);
 				}
 #else
-				if (DUAL_CAMERA_SUB_SENSOR == g_invokeSocketIdx[i]) {
+			//Modify camera main2 by Droi DXQ start 20170906
+		    	if (DUAL_CAMERA_MAIN_2_SENSOR == g_invokeSocketIdx[i]) {
+		    		spin_lock(&kdsensor_drv_lock);
+		    		gI2CBusNum = SUPPORT_I2C_BUS_NUM3;
+		    		spin_unlock(&kdsensor_drv_lock);
+		    	} else if (DUAL_CAMERA_SUB_SENSOR == g_invokeSocketIdx[i]) {
+			//Modify camera main2 by Droi DXQ end 20170906
 					spin_lock(&kdsensor_drv_lock);
 					gI2CBusNum = SUPPORT_I2C_BUS_NUM2;
 					spin_unlock(&kdsensor_drv_lock);
@@ -1054,10 +1269,14 @@ MUINT32 kd_MultiSensorClose(void)
 					PK_XLOG_INFO("kd_MultiSensorOpen: switch I2C BUS%d\n",
 						     gI2CBusNum);
 				}
-#else
-
-
-				if (DUAL_CAMERA_SUB_SENSOR == g_invokeSocketIdx[i]) {
+#else			
+//Modify camera main2 by Droi DXQ start 20170906
+				if (DUAL_CAMERA_MAIN_2_SENSOR == g_invokeSocketIdx[i]) {
+					spin_lock(&kdsensor_drv_lock);
+					gI2CBusNum = SUPPORT_I2C_BUS_NUM3;
+					spin_unlock(&kdsensor_drv_lock);
+				} else if (DUAL_CAMERA_SUB_SENSOR == g_invokeSocketIdx[i]) {
+//Modify camera main2 by Droi DXQ start 20170906
 					spin_lock(&kdsensor_drv_lock);
 					gI2CBusNum = SUPPORT_I2C_BUS_NUM2;
 					spin_unlock(&kdsensor_drv_lock);
@@ -1170,8 +1389,13 @@ int kdSetDriver(unsigned int *pDrvIndex)
 			PK_XLOG_INFO("kd_MultiSensorOpen: switch I2C BUS%d\n", gI2CBusNum);
 		}
 #else
-
-		if (DUAL_CAMERA_SUB_SENSOR == g_invokeSocketIdx[i]) {
+//Modify camera main2 by Droi DXQ start 20170906
+		if (DUAL_CAMERA_MAIN_2_SENSOR == g_invokeSocketIdx[i]) {
+			spin_lock(&kdsensor_drv_lock);
+			gI2CBusNum = SUPPORT_I2C_BUS_NUM3;
+			spin_unlock(&kdsensor_drv_lock);
+		} else if (DUAL_CAMERA_SUB_SENSOR == g_invokeSocketIdx[i]) {
+//Modify camera main2 by Droi DXQ end 20170906
 			spin_lock(&kdsensor_drv_lock);
 			gI2CBusNum = SUPPORT_I2C_BUS_NUM2;
 			spin_unlock(&kdsensor_drv_lock);
@@ -1381,6 +1605,33 @@ int kdSetExpGain(CAMERA_DUAL_CAMERA_SENSOR_ENUM InvokeCamera)
 
 }
 
+/*******************************************************************************
+*
+********************************************************************************/
+static UINT32 ms_to_jiffies(MUINT32 ms)
+{
+	return ((ms * HZ + 512) >> 10);
+}
+
+
+int kdSensorSetExpGainWaitDone(int *ptime)
+{
+	int timeout;
+
+	PK_DBG("[kd_sensorlist]enter kdSensorSetExpGainWaitDone: time: %d\n", *ptime);
+	timeout = wait_event_interruptible_timeout(kd_sensor_wait_queue,
+						   (setExpGainDoneFlag & 1), ms_to_jiffies(*ptime));
+
+	PK_DBG("[kd_sensorlist]after wait_event_interruptible_timeout\n");
+	if (timeout == 0) {
+		PK_ERR("[kd_sensorlist] kdSensorSetExpGainWait: timeout=%d\n", *ptime);
+
+		return -EAGAIN;
+	}
+
+	return 0;		/* No error. */
+
+}
 
 
 
@@ -1473,15 +1724,38 @@ static inline int adopt_CAMERA_HW_CheckIsAlive(void)
 				} else {
 
 					PK_DBG(" Sensor found ID = 0x%x\n", sensorID);
-					snprintf(mtk_ccm_name + strlen(mtk_ccm_name),
-						 sizeof(mtk_ccm_name) - strlen(mtk_ccm_name),
-						 " CAM[%d]:%s;", g_invokeSocketIdx[i], g_invokeSensorNameStr[i]);
+					snprintf(mtk_ccm_name, sizeof(mtk_ccm_name),
+						 "%s CAM[%d]:%s;", mtk_ccm_name,
+						 g_invokeSocketIdx[i], g_invokeSensorNameStr[i]);
 					err = ERROR_NONE;
 				}
 				if (ERROR_NONE != err) {
 					PK_DBG
 					    ("ERROR:adopt_CAMERA_HW_CheckIsAlive(), No imgsensor alive\n");
 				}
+				#ifdef CAM_HWINFO
+		   		 else
+				{
+					PK_DBG(" ##dxq## hw_info g_invokeSocketIdx[%d] = %d\n",i, g_invokeSocketIdx[i]);
+					PK_DBG(" ##dxq## KDIMGSENSOR_MAX_INVOKE_DRIVERS  = %d\n",KDIMGSENSOR_MAX_INVOKE_DRIVERS);
+					if(DUAL_CAMERA_MAIN_SENSOR==g_invokeSocketIdx[i])
+					{
+						strcpy(tyd_imgsensor_name_main,g_invokeSensorNameStr[i]);
+						
+					}
+					else if(DUAL_CAMERA_SUB_SENSOR==g_invokeSocketIdx[i])
+					{
+						strcpy(tyd_imgsensor_name_sub,g_invokeSensorNameStr[i]);
+						
+						//Modify camera main2 by Droi DXQ start 20170906
+					} else if(DUAL_CAMERA_MAIN_2_SENSOR==g_invokeSocketIdx[i])
+					{
+						strcpy(tyd_imgsensor_name_main_2,g_invokeSensorNameStr[i]);
+						
+					}
+					//Modify camera main2 by Droi DXQ end 20170906
+				}
+				#endif
 			}
 		}
 	} else {
@@ -1616,24 +1890,22 @@ MSDK_SENSOR_INFO_STRUCT ginfo1[2];
 MSDK_SENSOR_INFO_STRUCT ginfo2[2];
 MSDK_SENSOR_INFO_STRUCT ginfo3[2];
 MSDK_SENSOR_INFO_STRUCT ginfo4[2];
-MSDK_SENSOR_INFO_STRUCT *pInfo[2];
-MSDK_SENSOR_CONFIG_STRUCT config[2], *pConfig[2];
-MSDK_SENSOR_INFO_STRUCT *pInfo1[2];
-MSDK_SENSOR_CONFIG_STRUCT config1[2], *pConfig1[2];
-MSDK_SENSOR_INFO_STRUCT *pInfo2[2];
-MSDK_SENSOR_CONFIG_STRUCT config2[2], *pConfig2[2];
-MSDK_SENSOR_INFO_STRUCT *pInfo3[2];
-MSDK_SENSOR_CONFIG_STRUCT config3[2], *pConfig3[2];
-MSDK_SENSOR_INFO_STRUCT *pInfo4[2];
-MSDK_SENSOR_CONFIG_STRUCT config4[2], *pConfig4[2];
-
 /* adopt_CAMERA_HW_GetInfo() */
 inline static int adopt_CAMERA_HW_GetInfo2(void *pBuf)
 {
 	IMAGESENSOR_GETINFO_STRUCT *pSensorGetInfo = (IMAGESENSOR_GETINFO_STRUCT *) pBuf;
 	ACDK_SENSOR_INFO2_STRUCT SensorInfo = { 0 };
 	MUINT32 IDNum = 0;
-
+	MSDK_SENSOR_INFO_STRUCT *pInfo[2];
+	MSDK_SENSOR_CONFIG_STRUCT config[2], *pConfig[2];
+	MSDK_SENSOR_INFO_STRUCT *pInfo1[2];
+	MSDK_SENSOR_CONFIG_STRUCT config1[2], *pConfig1[2];
+	MSDK_SENSOR_INFO_STRUCT *pInfo2[2];
+	MSDK_SENSOR_CONFIG_STRUCT config2[2], *pConfig2[2];
+	MSDK_SENSOR_INFO_STRUCT *pInfo3[2];
+	MSDK_SENSOR_CONFIG_STRUCT config3[2], *pConfig3[2];
+	MSDK_SENSOR_INFO_STRUCT *pInfo4[2];
+	MSDK_SENSOR_CONFIG_STRUCT config4[2], *pConfig4[2];
 	MSDK_SENSOR_RESOLUTION_INFO_STRUCT SensorResolution[2], *psensorResolution[2];
 
 	MUINT32 ScenarioId[2], *pScenarioId[2];
@@ -1947,11 +2219,6 @@ static inline int  adopt_CAMERA_HW_FeatureControl(void *pBuf)
 		PK_ERR(" ioctl copy from user failed\n");
 		return -EFAULT;
 	}
-	/* data size exam */
-	if (FeatureParaLen > FEATURE_CONTROL_MAX_DATA_SIZE) {
-		PK_ERR(" exceed data size limitation\n");
-		return -EFAULT;
-	}
 
 	pFeaturePara = kmalloc(FeatureParaLen, GFP_KERNEL);
 	if (NULL == pFeaturePara) {
@@ -2024,7 +2291,6 @@ static inline int  adopt_CAMERA_HW_FeatureControl(void *pBuf)
 		if (copy_from_user
 		    ((void *)pFeaturePara, (void *)pFeatureCtrl->pFeaturePara, FeatureParaLen)) {
 			PK_DBG("[CAMERA_HW][pFeaturePara] ioctl copy from user failed\n");
-			kfree(pFeaturePara);
 			return -EFAULT;
 		}
 		/* keep the information to wait Vsync synchronize */
@@ -2862,6 +3128,9 @@ bool Get_Cam_Regulator(void)
 				if (regVCAMAF == NULL) {
 					regVCAMAF = regulator_get(sensor_device, "vcamaf");
 				}
+			    if (regVRF18_1 == NULL) {
+				    regVRF18_1 = regulator_get(sensor_device, "vrf18_1");
+			    }
 			} else {
 				PK_DBG("Camera customer regulator name =%s!\n", name);
 				/* backup original dev.of_node */
@@ -2870,7 +3139,7 @@ bool Get_Cam_Regulator(void)
 				sensor_device->of_node =
 				    of_find_compatible_node(NULL, NULL,
 							    "mediatek,camera_hw");
-				/* 若你需要sub也定義的話，需要自己加上
+				/* \ADY\A7A\BB搨nsub\A4]\A9w\B8q\AA\BA\B8隉A\BB搨n\A6菑v\A5[\A4W
 				   if (regVCAMA == NULL) {
 				   regVCAMA_SUB = regulator_get(sensor_device, "SUB_CAMERA_POWER_A");
 				   }
@@ -2895,6 +3164,9 @@ bool Get_Cam_Regulator(void)
 					regVCAMAF =
 					    regulator_get(sensor_device, "vcamaf");
 				}
+			    if (regVRF18_1 == NULL) {
+				    regVRF18_1 = regulator_get(sensor_device, "vrf18_1");
+			    }
 				/* restore original dev.of_node */
 				sensor_device->of_node = kd_node;
 			}
@@ -2909,7 +3181,7 @@ bool Get_Cam_Regulator(void)
 }
 
 
-bool _hwPowerOn(KD_REGULATOR_TYPE_T type, int powerVolt)
+bool _hwPowerOn(PowerType type, int powerVolt)
 {
 	bool ret = FALSE;
 	struct regulator *reg = NULL;
@@ -2922,6 +3194,8 @@ bool _hwPowerOn(KD_REGULATOR_TYPE_T type, int powerVolt)
 		reg = regVCAMIO;
 	} else if (type == VCAMAF) {
 		reg = regVCAMAF;
+	} else if (type == VRF18_1) {
+		reg = regVRF18_1;
 	} else
 		return ret;
 
@@ -2947,7 +3221,7 @@ bool _hwPowerOn(KD_REGULATOR_TYPE_T type, int powerVolt)
 }
 EXPORT_SYMBOL(_hwPowerOn);
 
-bool _hwPowerDown(KD_REGULATOR_TYPE_T type)
+bool _hwPowerDown(PowerType type)
 {
 	bool ret = FALSE;
 	struct regulator *reg = NULL;
@@ -2960,6 +3234,8 @@ bool _hwPowerDown(KD_REGULATOR_TYPE_T type)
 		reg = regVCAMIO;
 	} else if (type == VCAMAF) {
 		reg = regVCAMAF;
+	} else if (type == VRF18_1) {
+		reg = regVRF18_1;
 	} else
 		return ret;
 
@@ -3413,6 +3689,7 @@ static long CAMERA_HW_Ioctl(struct file *a_pstFile,
 		break;
 
 	case KDIMGSENSORIOC_X_SET_SHUTTER_GAIN_WAIT_DONE:
+		i4RetValue = kdSensorSetExpGainWaitDone((int *)pBuff);
 		break;
 
 	case KDIMGSENSORIOC_X_SET_CURRENT_SENSOR:
@@ -3517,7 +3794,7 @@ static int CAMERA_HW_Release(struct inode *a_pstInode, struct file *a_pstFile)
 	atomic_dec(&g_CamDrvOpenCnt);
 /* PK_DBG("[CAMERA_HW_Release] g_CamDrvOpenCnt %d\n",g_CamDrvOpenCnt); */
 	/* if (atomic_read(&g_CamDrvOpenCnt) == 0) */
-	checkPowerBeforClose(CAMERA_HW_DRVNAME1);
+//	checkPowerBeforClose(CAMERA_HW_DRVNAME1);
 
 	return 0;
 }
@@ -3877,6 +4154,204 @@ struct i2c_driver CAMERA_HW_i2c_driver2 = {
 	.id_table = CAMERA_HW_i2c_id2,
 };
 
+#if !defined(OPEN_MAIN_FAKE_FLASHLIGHT)
+extern int flashlight_gpio_init(struct platform_device *pdev);
+#endif
+//Modify camera main2 by Droi DXQ start 20170906
+/*******************************************************************************
+ * RegisterCAMERA_HWCharDrv
+ * #define
+ * Main jobs:
+ * 1.check for device-specified errors, device not ready.
+ * 2.Initialize the device if it is opened for the first time.
+ * 3.Update f_op pointer.
+ * 4.Fill data structures into private_data
+ * CAM_RESET
+********************************************************************************/
+static int CAMERA_HW_Open3(struct inode *a_pstInode, struct file *a_pstFile)
+{
+    /*  */
+     if (atomic_read(&g_CamDrvOpenCnt3) == 0) {
+     /* kdCISModulePowerOn(DUAL_CAMERA_MAIN_2_SENSOR,"",true,CAMERA_HW_DRVNAME2); */
+
+    /* kdCISModulePowerOn(DUAL_CAMERA_MAIN_2_SENSOR,"",false,CAMERA_HW_DRVNAME2); */
+    }
+    atomic_inc(&g_CamDrvOpenCnt3);
+    return 0;
+}
+
+/*******************************************************************************
+  * RegisterCAMERA_HWCharDrv
+  * Main jobs:
+  * 1.Deallocate anything that "open" allocated in private_data.
+  * 2.Shut down the device on last close.
+  * 3.Only called once on last time.
+  * Q1 : Try release multiple times.
+********************************************************************************/
+static int CAMERA_HW_Release3(struct inode *a_pstInode, struct file *a_pstFile)
+{
+    atomic_dec(&g_CamDrvOpenCnt3);
+
+    return 0;
+}
+
+
+static const struct file_operations g_stCAMERA_HW_fops3 =
+{
+    .owner = THIS_MODULE,
+    .open = CAMERA_HW_Open3,
+    .release = CAMERA_HW_Release3,
+    .unlocked_ioctl = CAMERA_HW_Ioctl,
+#ifdef CONFIG_COMPAT
+    .compat_ioctl = CAMERA_HW_Ioctl_Compat,
+#endif
+
+};
+/*******************************************************************************
+* RegisterCAMERA_HWCharDrv
+********************************************************************************/
+inline static int RegisterCAMERA_HWCharDrv3(void)
+{
+    struct device *sensor_device = NULL;
+    UINT32 major;
+
+#if CAMERA_HW_DYNAMIC_ALLOCATE_DEVNO
+    if (alloc_chrdev_region(&g_CAMERA_HWdevno3, 0, 1, CAMERA_HW_DRVNAME3))
+    {
+    PK_DBG("[CAMERA SENSOR] Allocate device no failed\n");
+
+    return -EAGAIN;
+    }
+#else
+    if (register_chrdev_region(g_CAMERA_HWdevno3 , 1 , CAMERA_HW_DRVNAME3))
+    {
+    PK_DBG("[CAMERA SENSOR] Register device no failed\n");
+
+    return -EAGAIN;
+    }
+#endif
+
+    major = MAJOR(g_CAMERA_HWdevno3);
+    g_CAMERA_HWdevno3 = MKDEV(major, 0);
+
+    /* Allocate driver */
+    g_pCAMERA_HW_CharDrv3 = cdev_alloc();
+
+    if (NULL == g_pCAMERA_HW_CharDrv3)
+    {
+    unregister_chrdev_region(g_CAMERA_HWdevno3, 1);
+
+    PK_DBG("[CAMERA SENSOR] Allocate mem for kobject failed\n");
+
+    return -ENOMEM;
+    }
+
+    /* Attatch file operation. */
+    cdev_init(g_pCAMERA_HW_CharDrv3, &g_stCAMERA_HW_fops3);
+
+    g_pCAMERA_HW_CharDrv3->owner = THIS_MODULE;
+
+    /* Add to system */
+    if (cdev_add(g_pCAMERA_HW_CharDrv3, g_CAMERA_HWdevno3, 1))
+    {
+    PK_DBG("[mt6516_IDP] Attatch file operation failed\n");
+
+    unregister_chrdev_region(g_CAMERA_HWdevno3, 1);
+
+    return -EAGAIN;
+    }
+
+    sensor3_class = class_create(THIS_MODULE, "sensordrv3");
+    if (IS_ERR(sensor3_class)) {
+    int ret = PTR_ERR(sensor3_class);
+    PK_DBG("Unable to create class, err = %d\n", ret);
+    return ret;
+    }
+    sensor_device = device_create(sensor3_class, NULL, g_CAMERA_HWdevno3, NULL, CAMERA_HW_DRVNAME3);
+
+    return 0;
+}
+
+inline static void UnregisterCAMERA_HWCharDrv3(void)
+{
+    /* Release char driver */
+	if(g_pCAMERA_HW_CharDrv3 != NULL)
+		cdev_del(g_pCAMERA_HW_CharDrv3);
+
+    unregister_chrdev_region(g_CAMERA_HWdevno3, 1);
+	if (!IS_ERR(sensor3_class)) {
+		device_destroy(sensor3_class, g_CAMERA_HWdevno3);
+		class_destroy(sensor3_class);
+	}
+}
+
+
+/*******************************************************************************
+* CAMERA_HW_i2c_probe
+********************************************************************************/
+static int CAMERA_HW_i2c_probe3(struct i2c_client *client, const struct i2c_device_id *id)
+{
+    int i4RetValue = 0;
+    printk("[CAMERA_HW] dxq Attach I2C3\n");
+
+    spin_lock(&kdsensor_drv_lock);
+
+    /* get sensor i2c client */
+    g_pstI2Cclient3 = client;
+
+    /* set I2C clock rate */
+    g_pstI2Cclient3->timing = 100;/* 100k */
+    g_pstI2Cclient3->ext_flag &= ~I2C_POLLING_FLAG; /* No I2C polling busy waiting */
+    spin_unlock(&kdsensor_drv_lock);
+
+    /* Register char driver */
+    i4RetValue = RegisterCAMERA_HWCharDrv3();
+
+    if (i4RetValue) {
+    PK_ERR("[CAMERA_HW] register char device failed!\n");
+    return i4RetValue;
+    }
+
+    /* spin_lock_init(&g_CamHWLock); */
+
+    PK_DBG("[CAMERA_HW] Attached!!\n");
+    return 0;
+}
+
+/*******************************************************************************
+* CAMERA_HW_i2c_remove
+********************************************************************************/
+static int CAMERA_HW_i2c_remove3(struct i2c_client *client)
+{
+	UnregisterCAMERA_HWCharDrv3();
+    return 0;
+}
+
+/*******************************************************************************
+* I2C Driver structure
+********************************************************************************/
+#ifdef CONFIG_OF
+    static const struct of_device_id CAMERA_HW3_i2c_driver_of_ids[] = {
+	{ .compatible = "mediatek,camera_main_2", },
+	{}
+    };
+#endif
+
+struct i2c_driver CAMERA_HW_i2c_driver3 = {
+    .probe = CAMERA_HW_i2c_probe3,
+    .remove = CAMERA_HW_i2c_remove3,
+    .driver = {
+    .name = CAMERA_HW_DRVNAME3,
+    .owner = THIS_MODULE,
+#if 1
+#ifdef CONFIG_OF
+    .of_match_table = CAMERA_HW3_i2c_driver_of_ids,
+#endif
+#endif
+    },
+    .id_table = CAMERA_HW_i2c_id3,
+};
+//Modify camera main2 by Droi DXQ end 20170906
 /*******************************************************************************
 * CAMERA_HW_probe
 ********************************************************************************/
@@ -3885,6 +4360,7 @@ static int CAMERA_HW_probe(struct platform_device *pdev)
 #if !defined(CONFIG_MTK_LEGACY)
 	mtkcam_gpio_init(pdev);
 #endif
+
 	return i2c_add_driver(&CAMERA_HW_i2c_driver);
 }
 
@@ -3950,15 +4426,11 @@ static int CAMERA_HW_resume2(struct platform_device *pdev)
   *=======================================================================*/
 /* It seems we don't need to use device tree to register device cause we just use i2C part */
 /* You can refer to CAMERA_HW_probe & CAMERA_HW_i2c_probe */
-
-#if 1
-#ifdef CONFIG_OF
 static const struct of_device_id CAMERA_HW2_of_ids[] = {
 	{.compatible = "mediatek,camera_hw2",},
 	{}
 };
-#endif
-#endif
+
 
 static struct platform_driver g_stCAMERA_HW_Driver2 = {
 	.probe = CAMERA_HW_probe2,
@@ -3976,6 +4448,76 @@ static struct platform_driver g_stCAMERA_HW_Driver2 = {
 
 		   }
 };
+
+/*=======================================================================
+  * platform driver
+  *=======================================================================*/
+/* It seems we don't need to use device tree to register device cause we just use i2C part */
+/* You can refer to CAMERA_HW_probe & CAMERA_HW_i2c_probe */
+
+//Modify camera main2 by Droi DXQ start 20170906
+/*******************************************************************************
+* CAMERA_HW_remove
+********************************************************************************/
+static int CAMERA_HW_probe3(struct platform_device *pdev)
+{
+    return i2c_add_driver(&CAMERA_HW_i2c_driver3);
+}
+
+/*******************************************************************************
+* CAMERA_HW_remove()
+********************************************************************************/
+static int CAMERA_HW_remove3(struct platform_device *pdev)
+{
+    i2c_del_driver(&CAMERA_HW_i2c_driver3);
+    return 0;
+}
+
+static int CAMERA_HW_suspend3(struct platform_device *pdev, pm_message_t mesg)
+{
+    return 0;
+}
+
+/*******************************************************************************
+  * CAMERA_HW_DumpReg_To_Proc()
+  * Used to dump some critical sensor register
+  ********************************************************************************/
+static int CAMERA_HW_resume3(struct platform_device *pdev)
+{
+    return 0;
+}
+/*=======================================================================
+  * platform driver
+  *=======================================================================*/
+/* It seems we don't need to use device tree to register device cause we just use i2C part */
+/* You can refer to CAMERA_HW_probe & CAMERA_HW_i2c_probe */
+
+#if 1
+#ifdef CONFIG_OF
+static const struct of_device_id CAMERA_HW3_of_ids[] = {
+    { .compatible = "mediatek,camera_hw3", },
+    {}
+};
+#endif
+#endif
+
+static struct platform_driver g_stCAMERA_HW_Driver3 = {
+    .probe      = CAMERA_HW_probe3,
+    .remove     = CAMERA_HW_remove3,
+    .suspend    = CAMERA_HW_suspend3,
+    .resume     = CAMERA_HW_resume3,
+    .driver     = {
+    .name   = "image_sensor_bus3",
+    .owner  = THIS_MODULE,
+#if 1
+#ifdef CONFIG_OF
+    .of_match_table = CAMERA_HW3_of_ids,
+#endif
+#endif
+
+    }
+};
+//Modify camera main2 by Droi DXQ end 20170906
 
 /*******************************************************************************
 * iWriteTriggerReg
@@ -4186,7 +4728,7 @@ static ssize_t CAMERA_HW_Reg_Debug(struct file *file, const char *buffer, size_t
 		}
 	} else
 	    if (sscanf
-		(regBuf, "%31s %31s %d %x", debugSensor.debugStruct, debugSensor.debugSubstruct,
+		(regBuf, "%s %s %d %x", debugSensor.debugStruct, debugSensor.debugSubstruct,
 		 &debugSensor.isGet, &debugSensor.value) == 4) {
 		if (g_pSensorFunc != NULL) {
 			g_pSensorFunc->SensorFeatureControl(DUAL_CAMERA_MAIN_SENSOR,
@@ -4378,21 +4920,36 @@ static int __init CAMERA_HW_i2C_init(void)
 		return ret;
 	}
 
-	ret = platform_device_register(&camerahw2_platform_device);
-	if (ret) {
-		PK_ERR("[camerahw2_probe] platform_device_register fail\n");
-		return ret;
-	}
+    ret = platform_device_register(&camerahw2_platform_device);
+    if (ret) {
+   		PK_ERR("[camerahw2_probe] platform_device_register fail\n");
+    	return ret;
+    }
+//Modify camera main2 by Droi DXQ start 20170906	
+	//add main_2 dev
+    ret = platform_device_register(&camerahw3_platform_device);
+    if (ret) {
+   		PK_ERR("[camerahw3_probe] platform_device_register fail\n");
+    	return ret;
+    }
+//Modify camera main2 by Droi DXQ end 20170906
 #endif
 
-	if (platform_driver_register(&g_stCAMERA_HW_Driver)) {
-		PK_ERR("failed to register CAMERA_HW driver\n");
-		return -ENODEV;
-	}
-	if (platform_driver_register(&g_stCAMERA_HW_Driver2)) {
-		PK_ERR("failed to register CAMERA_HW driver\n");
-		return -ENODEV;
-	}
+    if (platform_driver_register(&g_stCAMERA_HW_Driver)) {
+    	PK_ERR("failed to register CAMERA_HW driver\n");
+    	return -ENODEV;
+    }
+    if (platform_driver_register(&g_stCAMERA_HW_Driver2)) {
+   		PK_ERR("failed to register CAMERA_HW driver\n");
+    	return -ENODEV;
+    }
+	//Modify camera main2 by Droi DXQ start 20170906
+	//add main_2 dev
+    if (platform_driver_register(&g_stCAMERA_HW_Driver3)) {
+   		PK_ERR("failed to register CAMERA_HW3 driver\n");
+    	return -ENODEV;
+    }
+	//Modify camera main2 by Droi DXQ end 20170906
 /* FIX-ME: linux-3.10 procfs API changed */
 #if 1
 	proc_create("driver/camsensor", 0, NULL, &fcamera_proc_fops);
@@ -4459,11 +5016,14 @@ static int __init CAMERA_HW_i2C_init(void)
 	}
 
 #endif
-	atomic_set(&g_CamHWOpend, 0);
-	atomic_set(&g_CamHWOpend2, 0);
-	atomic_set(&g_CamDrvOpenCnt, 0);
-	atomic_set(&g_CamDrvOpenCnt2, 0);
-	atomic_set(&g_CamHWOpening, 0);
+    atomic_set(&g_CamHWOpend, 0);
+    atomic_set(&g_CamHWOpend2, 0);
+    atomic_set(&g_CamDrvOpenCnt, 0);
+    atomic_set(&g_CamDrvOpenCnt2, 0);
+	//Modify camera main2 by Droi DXQ start 20170906
+    atomic_set(&g_CamDrvOpenCnt3, 0);
+	//Modify camera main2 by Droi DXQ end 20170906
+    atomic_set(&g_CamHWOpening, 0);
 
 
 
@@ -4475,8 +5035,11 @@ static int __init CAMERA_HW_i2C_init(void)
   *=======================================================================*/
 static void __exit CAMERA_HW_i2C_exit(void)
 {
-	platform_driver_unregister(&g_stCAMERA_HW_Driver);
-	platform_driver_unregister(&g_stCAMERA_HW_Driver2);
+    platform_driver_unregister(&g_stCAMERA_HW_Driver);
+    platform_driver_unregister(&g_stCAMERA_HW_Driver2);
+	//Modify camera main2 by Droi DXQ start 20170906
+    platform_driver_unregister(&g_stCAMERA_HW_Driver3);
+	//Modify camera main2 by Droi DXQ end 20170906
 }
 
 

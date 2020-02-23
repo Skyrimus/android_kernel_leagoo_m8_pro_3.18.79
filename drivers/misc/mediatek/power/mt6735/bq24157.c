@@ -1,15 +1,3 @@
-/*
- * Copyright (C) 2015 MediaTek Inc.
- *
- * This file is free software; you can redistribute it and/or modify
- * it under the terms of version 2 of the GNU General Public License
- * as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- */
 #include <linux/types.h>
 #include <linux/init.h>		/* For init/exit macros */
 #include <linux/module.h>	/* For MODULE_ marcros  */
@@ -23,33 +11,18 @@
 #endif
 #include <mt-plat/charging.h>
 #include "bq24157.h"
-
-#if 0
-#include <ontim/ontim_dev_dgb.h>
-static  char charge_ic_vendor_name[50] = "bq24157";
-DEV_ATTR_DECLARE(charge_ic)
-DEV_ATTR_DEFINE("vendor", charge_ic_vendor_name)
-DEV_ATTR_DECLARE_END;
-ONTIM_DEBUG_DECLARE_AND_INIT(charge_ic, charge_ic, 8);
-#endif
-
-#define bq24157_SLAVE_ADDR_WRITE_ERROR   0xD8
-#define bq24157_SLAVE_ADDR_READ    0xD5
 #define bq24157_SLAVE_ADDR_WRITE   0xD4
-
-#ifdef BQ24157_BUSNUM
-#undef BQ24157_BUSNUM
-#endif
-#define BQ24157_BUSNUM	3
+#define bq24157_SLAVE_ADDR_READ    0xD5
 
 static struct i2c_client *new_client;
 static const struct i2c_device_id bq24157_i2c_id[] = { {"bq24157", 0}, {} };
 
+kal_bool chargin_hw_init_done = KAL_FALSE;
 static int bq24157_driver_probe(struct i2c_client *client, const struct i2c_device_id *id);
 
 #ifdef CONFIG_OF
 static const struct of_device_id bq24157_of_match[] = {
-	{.compatible = "bq24157",},
+	{.compatible = "mediatek,swithing_charger",},
 	{},
 };
 
@@ -76,7 +49,7 @@ unsigned char bq24157_reg[bq24157_REG_NUM] = { 0 };
 
 static DEFINE_MUTEX(bq24157_i2c_access);
 
-int g_bq24157_hw_exist = -1;
+int g_bq24157_hw_exist = 0;
 
 /**********************************************************
   *
@@ -129,11 +102,13 @@ int bq24157_write_byte(unsigned char cmd, unsigned char writeData)
 
 		new_client->ext_flag = 0;
 		mutex_unlock(&bq24157_i2c_access);
+		//battery_log(BAT_LOG_FULL, "hejinlong %s:failed ret=%d\n", __func__, ret);
 		return 0;
 	}
 
 	new_client->ext_flag = 0;
 	mutex_unlock(&bq24157_i2c_access);
+	//battery_log(BAT_LOG_FULL, "hejinlong %s:success cmd=0x%x writeData=0x%x ret=%d\n", __func__, cmd, writeData, ret);
 	return 1;
 }
 
@@ -155,7 +130,7 @@ unsigned int bq24157_read_interface(unsigned char RegNum, unsigned char *val, un
 	bq24157_reg &= (MASK << SHIFT);
 	*val = (bq24157_reg >> SHIFT);
 
-	/* battery_log(BAT_LOG_CRTI, "[bq24157_read_interface] val=0x%x\n", *val);*/
+	battery_log(BAT_LOG_FULL, "[bq24157_read_interface] val=0x%x\n", *val);
 
 	return ret;
 }
@@ -177,8 +152,6 @@ unsigned int bq24157_config_interface(unsigned char RegNum, unsigned char val, u
 		/* RESET bit */
 	} else if (RegNum == bq24157_CON4) {
 		bq24157_reg &= ~0x80;	/* RESET bit read returs 1, so clear it */
-		battery_log(BAT_LOG_CRTI, "[bq24157_config_interface] bq24157_reg:0x%x; line:%d\n",
-			bq24157_reg, __LINE__);
 	}
 
 	ret = bq24157_write_byte(RegNum, bq24157_reg);
@@ -453,6 +426,7 @@ void bq24157_set_iterm(unsigned int val)
 
 /* CON5 */
 
+#if 0
 void bq24157_set_dis_vreg(unsigned int val)
 {
 	unsigned int ret = 0;
@@ -463,6 +437,7 @@ void bq24157_set_dis_vreg(unsigned int val)
 				       (unsigned char) (CON5_DIS_VREG_SHIFT)
 	    );
 }
+#endif
 
 void bq24157_set_io_level(unsigned int val)
 {
@@ -475,14 +450,14 @@ void bq24157_set_io_level(unsigned int val)
 	    );
 }
 
-unsigned int bq24157_get_sp_status(void)
+unsigned int bq24157_get_dpm_status(void)
 {
 	unsigned int ret = 0;
 	unsigned char val = 0;
 
 	ret = bq24157_read_interface((unsigned char) (bq24157_CON5),
-				     (&val), (unsigned char) (CON5_SP_STATUS_MASK),
-				     (unsigned char) (CON5_SP_STATUS_SHIFT)
+				     (&val), (unsigned char) (CON5_DPM_STATUS_MASK),
+				     (unsigned char) (CON5_DPM_STATUS_SHIFT)
 	    );
 	return val;
 }
@@ -546,7 +521,7 @@ void bq24157_hw_component_detect(void)
 
 	ret = bq24157_read_interface(0x03, &val, 0xFF, 0x0);
 
-	if (val == 0x51 || val == 0x41)
+	if (val == 0)
 		g_bq24157_hw_exist = 0;
 	else
 		g_bq24157_hw_exist = 1;
@@ -565,32 +540,23 @@ void bq24157_dump_register(void)
 {
 	int i = 0;
 
-	battery_log(BAT_LOG_CRTI, "[bq24157] ");
+	battery_log(BAT_LOG_FULL, "hejinlong [bq24157] %s start", __func__);
 	for (i = 0; i < bq24157_REG_NUM; i++) {
 		bq24157_read_byte(i, &bq24157_reg[i]);
-		battery_log(BAT_LOG_CRTI, "[0x%x]=0x%x ", i, bq24157_reg[i]);
+		battery_log(BAT_LOG_FULL, "[0x%x]=0x%x ", i, bq24157_reg[i]);
 	}
-	battery_log(BAT_LOG_CRTI, "\n");
+	battery_log(BAT_LOG_FULL, "hejinlong %s end\n", __func__);
 }
 
 static int bq24157_driver_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
-	int ret = 0;
-
 	new_client = client;
-	new_client->addr = bq24157_SLAVE_ADDR_WRITE;
-	new_client->addr =  new_client->addr >> 1;
 
 	bq24157_hw_component_detect();
 	bq24157_dump_register();
-	if (is_bq24157_exist() == 0)
-		chargin_hw_init_done = KAL_TRUE;
-	else
-		ret = -1;
+	chargin_hw_init_done = KAL_TRUE;
 
-	battery_log(BAT_LOG_CRTI, "bq24157_driver_probe  line=%d\n", __LINE__);
-
-	return ret;
+	return 0;
 }
 
 /**********************************************************
@@ -669,17 +635,9 @@ static struct platform_driver bq24157_user_space_driver = {
 	},
 };
 
-static struct i2c_board_info i2c_bq24157 __initdata = { I2C_BOARD_INFO("bq24157",
-							(bq24157_SLAVE_ADDR_WRITE_ERROR >> 1))};
 static int __init bq24157_init(void)
 {
 	int ret = 0;
-	struct device_node *node = of_find_compatible_node(NULL, NULL, "bq24157");
-
-	battery_log(BAT_LOG_CRTI, "[bq24157_init] init start\n");
-
-	if (!node)
-		i2c_register_board_info(BQ24157_BUSNUM, &i2c_bq24157, 1);
 
 	if (i2c_add_driver(&bq24157_driver) != 0) {
 		battery_log(BAT_LOG_CRTI,

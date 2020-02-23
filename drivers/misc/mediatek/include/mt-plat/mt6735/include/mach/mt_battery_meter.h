@@ -34,7 +34,6 @@
 	|| defined(CONFIG_MTK_BQ24261_SUPPORT)
 #define SWCHR_POWER_PATH
 #define EXTERNAL_SWCHR_SUPPORT
-#define DISABLE_RFG_EXIST_CHECK
 #endif
 
 /* ADC resistor  */
@@ -82,7 +81,7 @@
 #define OCV_BOARD_COMPESATE	0 /*mV */
 #define R_FG_BOARD_BASE 1000
 #define R_FG_BOARD_SLOPE 1000 /*slope*/
-#define CAR_TUNE_VALUE 86 /*1.00*/
+#define CAR_TUNE_VALUE 100 /*1.00*/
 
 
 /* HW Fuel gague  */
@@ -170,7 +169,6 @@
 	|| defined(CONFIG_MTK_BQ24261_SUPPORT)
 #define SWCHR_POWER_PATH
 #define EXTERNAL_SWCHR_SUPPORT
-#define DISABLE_RFG_EXIST_CHECK
 #endif
 
 /* ADC resistor  */
@@ -308,7 +306,6 @@
 	|| defined(CONFIG_MTK_BQ24261_SUPPORT)
 #define SWCHR_POWER_PATH
 #define EXTERNAL_SWCHR_SUPPORT
-#define DISABLE_RFG_EXIST_CHECK
 #endif
 
 /* ADC resistor  */
